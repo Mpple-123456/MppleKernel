@@ -7,4 +7,3 @@ nasm -f bin boot.asm -o boot.bin
 dd if=/dev/zero of=os.img bs=512 count=2880
 dd if=boot.bin of=os.img conv=notrunc
 dd if=kernel.bin of=os.img seek=1 conv=notrunc
-qemu-system-i386 -drive format=raw,file=os.img -fda os.img -snapshot
