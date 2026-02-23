@@ -22,6 +22,31 @@ static uint8_t current_color = 0x07;  // 灰色
 static bool shift_pressed = false;
 static bool caps_locked = false;
 
+// 端口 I/O 内联函数（提前定义）
+static inline uint8_t inb(uint16_t port) {
+    uint8_t ret;
+    asm volatile("inb %1, %0" : "=a"(ret) : "Nd"(port));
+    return ret;
+}
+
+static inline void outb(uint16_t port, uint8_t val) {
+    asm volatile("outb %0, %1" : : "a"(val), "Nd"(port));
+}
+
+static inline void outw(uint16_t port, uint16_t val) {
+    asm volatile("outw %0, %1" : : "a"(val), "Nd"(port));
+}
+
+// 更新硬件光标的宏（直接使用 outb）
+#define UPDATE_CURSOR() \
+    do { \
+        uint16_t pos = cursor_y * VGA_WIDTH + cursor_x; \
+        outb(0x3D4, 14); \
+        outb(0x3D5, pos >> 8); \
+        outb(0x3D4, 15); \
+        outb(0x3D5, pos & 0xFF); \
+    } while(0)
+
 // 清屏宏
 #define CLEAR() \
     do { \
@@ -29,6 +54,7 @@ static bool caps_locked = false;
             for (int _x = 0; _x < VGA_WIDTH; _x++) \
                 vga[_y * VGA_WIDTH + _x] = (current_color << 8) | ' '; \
         cursor_x = 0; cursor_y = 0; \
+        UPDATE_CURSOR(); \
     } while(0)
 
 // 在指定位置输出字符
@@ -63,6 +89,7 @@ static bool caps_locked = false;
         if (cursor_y >= VGA_HEIGHT) { \
             CLEAR(); \
         } \
+        UPDATE_CURSOR(); \
     } while(0)
 
 // 输出字符串
@@ -74,21 +101,6 @@ static bool caps_locked = false;
 
 // 输出字符串并换行
 #define OUT(str) do { PRINT(str); PUTCHAR('\n'); } while(0)
-
-// 端口 I/O 内联函数
-static inline uint8_t inb(uint16_t port) {
-    uint8_t ret;
-    asm volatile("inb %1, %0" : "=a"(ret) : "Nd"(port));
-    return ret;
-}
-
-static inline void outb(uint16_t port, uint8_t val) {
-    asm volatile("outb %0, %1" : : "a"(val), "Nd"(port));
-}
-
-static inline void outw(uint16_t port, uint16_t val) {
-    asm volatile("outw %0, %1" : : "a"(val), "Nd"(port));
-}
 
 // 键盘扫描码映射表（US 布局）
 static const char base_map[128] = {
@@ -221,6 +233,10 @@ static inline int strequal(const char* a, const char* b) {
 
 // 内核入口
 extern "C" void kernel_main() {
+    // 简单调试：直接在左上角输出一个字符，确认内核运行
+    volatile uint16_t* debug = (uint16_t*)0xB8000;
+    debug[0] = (0x07 << 8) | 'K';
+
     CLEAR();
 
     // 显示 Logo
