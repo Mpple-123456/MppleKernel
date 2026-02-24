@@ -1,18 +1,11 @@
 #include <stdint.h>
 #include <stdbool.h>
+#include "logo.h"
 
 #define VGA_WIDTH 80
 #define VGA_HEIGHT 25
 #define VGA_MEMORY ((uint16_t*)0xB8000)
-static const char* logo[] = {
-    "      |",
-    "  /\\  |  /\\",
-    " /--\\-|-/--\\",
-    "/    \\|/    \\",
-    " Mpple Kernel",
-    "==================="
-};
-static const int logo_lines = sizeof(logo) / sizeof(logo[0]);
+
 static volatile uint16_t* const vga = VGA_MEMORY;
 static int cursor_x = 0;
 static int cursor_y = 0;
@@ -22,7 +15,7 @@ static uint8_t current_color = 0x07;  // 灰色
 static bool shift_pressed = false;
 static bool caps_locked = false;
 
-// 端口 I/O 内联函数（提前定义）
+// 端口 I/O 内联函数
 static inline uint8_t inb(uint16_t port) {
     uint8_t ret;
     asm volatile("inb %1, %0" : "=a"(ret) : "Nd"(port));
@@ -37,7 +30,7 @@ static inline void outw(uint16_t port, uint16_t val) {
     asm volatile("outw %0, %1" : : "a"(val), "Nd"(port));
 }
 
-// 更新硬件光标的宏（直接使用 outb）
+// 更新硬件光标
 #define UPDATE_CURSOR() \
     do { \
         uint16_t pos = cursor_y * VGA_WIDTH + cursor_x; \
@@ -102,47 +95,31 @@ static inline void outw(uint16_t port, uint16_t val) {
 // 输出字符串并换行
 #define OUT(str) do { PRINT(str); PUTCHAR('\n'); } while(0)
 
-// 键盘扫描码映射表（US 布局）
+// 键盘扫描码映射表
 static const char base_map[128] = {
-    // 0x00-0x0F
-    0, 0, '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', '\b', 0,
-    // 0x10-0x1F
-    'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\n', 0, 'a', 's',
-    // 0x20-0x2F
-    'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', '\'', '`', 0, '\\', 'z', 'x', 'c', 'v',
-    // 0x30-0x3F
-    'b', 'n', 'm', ',', '.', '/', 0, '*', 0, ' ', 0, 0, 0, 0, 0, 0
+    0,0,'1','2','3','4','5','6','7','8','9','0','-','=','\b',0,
+    'q','w','e','r','t','y','u','i','o','p','[',']','\n',0,'a','s',
+    'd','f','g','h','j','k','l',';','\'','`',0,'\\','z','x','c','v',
+    'b','n','m',',','.','/',0,'*',0,' ',0,0,0,0,0,0
 };
 
 static const char shift_map[128] = {
-    // 0x00-0x0F
-    0, 0, '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '+', '\b', 0,
-    // 0x10-0x1F
-    'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '{', '}', '\n', 0, 'A', 'S',
-    // 0x20-0x2F
-    'D', 'F', 'G', 'H', 'J', 'K', 'L', ':', '"', '~', 0, '|', 'Z', 'X', 'C', 'V',
-    // 0x30-0x3F
-    'B', 'N', 'M', '<', '>', '?', 0, '*', 0, ' ', 0, 0, 0, 0, 0, 0
+    0,0,'!','@','#','$','%','^','&','*','(',')','_','+','\b',0,
+    'Q','W','E','R','T','Y','U','I','O','P','{','}','\n',0,'A','S',
+    'D','F','G','H','J','K','L',':','"','~',0,'|','Z','X','C','V',
+    'B','N','M','<','>','?',0,'*',0,' ',0,0,0,0,0,0
 };
 
-// 读取一个字符（阻塞，返回ASCII，0表示无效）
+// 读取一个字符
 static inline char getchar() {
     uint8_t scancode;
     while ((inb(0x64) & 1) == 0);
     scancode = inb(0x60);
 
-    // 处理修饰键状态
-    if (scancode == 0x2A || scancode == 0x36) { // 左Shift或右Shift按下
-        shift_pressed = true;
-        return 0;
-    }
-    if (scancode == 0xAA || scancode == 0xB6) { // 左Shift或右Shift释放
-        shift_pressed = false;
-        return 0;
-    }
-    if (scancode == 0x3A) { // Caps Lock 按下
+    if (scancode == 0x2A || scancode == 0x36) { shift_pressed = true; return 0; }
+    if (scancode == 0xAA || scancode == 0xB6) { shift_pressed = false; return 0; }
+    if (scancode == 0x3A) {
         caps_locked = !caps_locked;
-        // 在屏幕右上角显示 Caps 状态
         volatile uint16_t* vga = (uint16_t*)0xB8000;
         if (caps_locked) {
             vga[79] = (0x0F << 8) | 'C';
@@ -157,36 +134,21 @@ static inline char getchar() {
         }
         return 0;
     }
-    if (scancode & 0x80) {
-        // 其他键释放，忽略
-        return 0;
-    }
-
-    // 处理可打印键
+    if (scancode & 0x80) return 0;
     if (scancode >= 128) return 0;
     char base = base_map[scancode];
     char shifted = shift_map[scancode];
     if (base == 0) return 0;
-
-    // 判断是否为字母
     if ((base >= 'a' && base <= 'z') || (base >= 'A' && base <= 'Z')) {
-        // 字母大小写由 shift XOR caps 决定
-        if (shift_pressed != caps_locked) {
-            return shifted; // 大写
-        } else {
-            return base;    // 小写
-        }
+        if (shift_pressed != caps_locked) return shifted;
+        else return base;
     } else {
-        // 非字母：shift 决定使用上档还是下档
-        if (shift_pressed) {
-            return shifted ? shifted : base;
-        } else {
-            return base;
-        }
+        if (shift_pressed) return shifted ? shifted : base;
+        else return base;
     }
 }
 
-// 读取一行输入（存入buffer，最多max_len-1字符）
+// 读取一行输入
 static inline void read_line(char* buffer, int max_len) {
     int i = 0;
     while (i < max_len - 1) {
@@ -212,39 +174,102 @@ static inline void read_line(char* buffer, int max_len) {
 // 程序入口类型
 typedef void (*prog_entry_t)(void);
 
-// 程序信息结构
 struct Program {
     const char* name;
     prog_entry_t entry;
 };
 
-// 预定义的程序列表（必须与合并到内核映像的顺序和地址一致）
-static const Program programs[] = {
-    //{ "calc", (prog_entry_t)0x40000 },
-    // 没做
-};
+static const Program programs[] = {};
 static const int num_programs = sizeof(programs) / sizeof(programs[0]);
 
-// 简单的字符串比较函数（返回1表示相等）
+// 字符串比较
 static inline int strequal(const char* a, const char* b) {
     while (*a && *b && *a == *b) { a++; b++; }
     return (*a == '\0' && *b == '\0');
 }
 
+// 绘制多行字符串
+static void draw(const char* pic[], int lines) {
+    for (int i = 0; i < lines; i++) {
+        OUT(pic[i]);
+    }
+}
+
+// ==================== Desktop 功能 ====================
+static void Desktop() {
+    while (1) {
+        CLEAR();
+        draw(Exit, sizeof(Exit) / sizeof(Exit[0]));
+        draw(Poweroff, sizeof(Poweroff) / sizeof(Poweroff[0]));
+        draw(Reboot, sizeof(Reboot) / sizeof(Reboot[0]));
+
+        OUT("=============================================");
+        OUT("INPUT NUMBER TO CHOOSE FUNCTION: ");
+
+        char choice = 0;
+        while (choice == 0) {
+            choice = getchar();
+        }
+
+        // 处理 Shift 组合键输入的符号
+        if (choice == '!') choice = '1';
+        else if (choice == '@') choice = '2';
+        else if (choice == '#') choice = '3';
+
+        if (choice == '1') {
+            return; // 返回命令行
+        } else if (choice == '2') {
+            OUT("System powering off...");
+            for (int i = 0; i < 5000000; i++) asm volatile("pause");
+            outw(0x604, 0x2000);
+            outb(0x64, 0xFE);
+            asm volatile("cli; hlt");
+            while (1);
+        } else if (choice == '3') {
+            OUT("System rebooting...");
+            for (int i = 0; i < 5000000; i++) asm volatile("pause");
+            while (inb(0x64) & 0x02);
+            outb(0x64, 0xFE);
+            asm volatile("cli; hlt");
+            while (1);
+        } else {
+            OUT("Invalid choice. Press any key to continue...");
+            while (getchar() == 0);
+        }
+    }
+}
+// ======================================================
+
+// ==================== 内存文件系统（暂未启用）====================
+#define MAX_FILES 16
+#define MAX_FILENAME 16
+#define MAX_FILE_SIZE 512
+
+typedef struct {
+    char name[MAX_FILENAME];
+    char content[MAX_FILE_SIZE];
+    int size;
+    int used;
+} File;
+
+static File files[MAX_FILES];
+static int file_count = 0;
+
+// 初始化文件系统
+static void init_filesystem() {
+    for (int i = 0; i < MAX_FILES; i++) files[i].used = 0;
+    file_count = 0;
+}
+// =============================================================
+
 // 内核入口
 extern "C" void kernel_main() {
-    // 简单调试：直接在左上角输出一个字符，确认内核运行
-    volatile uint16_t* debug = (uint16_t*)0xB8000;
-    debug[0] = (0x07 << 8) | 'K';
+    // 初始化文件系统
+    init_filesystem();
 
     CLEAR();
+    draw(Logo, sizeof(Logo) / sizeof(Logo[0]));
 
-    // 显示 Logo
-    for (int i = 0; i < logo_lines; i++) {
-        OUT(logo[i]);
-    }
-
-    // 可选延时，让 Logo 停留一会儿
     for (int i = 0; i < 3000000; i++) asm volatile("pause");
     shift_pressed = false;
     caps_locked = false;
@@ -268,6 +293,7 @@ extern "C" void kernel_main() {
             OUT("shutdown - Same as poweroff");
             OUT("reboot   - Reboot the system");
             OUT("run      - Run a program (run <progname>)");
+            OUT("desktop  - Enter desktop environment");
             continue;
         }
 
@@ -293,8 +319,8 @@ extern "C" void kernel_main() {
         if (strequal(cmd_buf, "poweroff")) {
             OUT("System powering off...");
             for (int i = 0; i < 5000000; i++) asm volatile("pause");
-            outw(0x604, 0x2000);  // QEMU 关机
-            outb(0x64, 0xFE);      // 备用复位
+            outw(0x604, 0x2000);
+            outb(0x64, 0xFE);
             asm volatile("cli; hlt");
             while (1);
         }
@@ -327,8 +353,7 @@ extern "C" void kernel_main() {
                 if (strequal(prog_name, programs[i].name)) {
                     OUT("Starting program: ");
                     OUT(programs[i].name);
-                    programs[i].entry();  // 调用程序
-                    // 如果程序返回，会执行到这里
+                    programs[i].entry();
                     OUT("Program returned.");
                     found = 1;
                     break;
@@ -339,12 +364,17 @@ extern "C" void kernel_main() {
             }
             continue;
         }
+        //if (strequal(cmd_buf, "desktop")) {
+            //Desktop();
+            //continue;
+        //}
         if (strequal(cmd_buf, "RESETKB")) {
             shift_pressed = false;
             caps_locked = false;
             OUT("Keyboard state reset.");
             continue;
         }
+
         // 未知命令
         OUT("Unknown command. Type 'help'.");
     }
