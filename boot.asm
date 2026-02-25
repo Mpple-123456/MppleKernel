@@ -28,7 +28,7 @@ start:
     xor bx, bx          ; ES:BX = 0x1000:0x0000
     
     mov ah, 2           ; 功能号：读扇区
-    mov al, 40          ; 读取 20 个扇区
+    mov al, 100          ; 读取 20 个扇区
     mov ch, 0           ; 柱面
     mov cl, 2           ; 起始扇区（2，因为第一个是引导扇区）
     mov dh, 0           ; 磁头
