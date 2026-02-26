@@ -14,21 +14,25 @@ start:
     ; 保存引导驱动器号
     mov [boot_drive], dl
 
-    ; 显示加载信息
-    mov si, loading_msg
+    ; 显示初始加载信息
+    mov si, msg_booting
     call print_string
 
     ; 重置磁盘系统
+    mov si, msg_reset
+    call print_string
     mov ah, 0
     int 0x13
 
     ; 加载内核到内存 0x1000:0x0000
+    mov si, msg_reading
+    call print_string
     mov ax, 0x1000
     mov es, ax
     xor bx, bx          ; ES:BX = 0x1000:0x0000
-    
+
     mov ah, 2           ; 功能号：读扇区
-    mov al, 100          ; 读取 20 个扇区
+    mov al, 100         ; 读取 100 个扇区
     mov ch, 0           ; 柱面
     mov cl, 2           ; 起始扇区（2，因为第一个是引导扇区）
     mov dh, 0           ; 磁头
@@ -36,8 +40,12 @@ start:
     int 0x13
     jc load_error
 
-    ; 显示成功信息
-    mov si, success_msg
+    ; 显示加载成功信息
+    mov si, msg_success
+    call print_string
+
+    ; 准备进入保护模式
+    mov si, msg_pmode
     call print_string
 
     ; 切换到保护模式
@@ -55,6 +63,7 @@ start:
 
     jmp 0x08:protected_mode
 
+; 实模式打印字符串函数
 print_string:
     lodsb
     or al, al
@@ -66,7 +75,7 @@ print_string:
     ret
 
 load_error:
-    mov si, error_msg
+    mov si, msg_error
     call print_string
 .hang:
     jmp .hang
@@ -90,7 +99,7 @@ protected_mode:
 
     ; 显示保护模式信息
     mov edi, 0xB8000
-    mov esi, protected_msg
+    mov esi, msg_protected
     call print_string_32
 
     ; 跳转到内核入口（0x10000）
@@ -100,6 +109,7 @@ protected_mode:
     hlt
     jmp $
 
+; 保护模式打印字符串函数
 print_string_32:
     mov ah, 0x07
 .next:
@@ -114,12 +124,15 @@ print_string_32:
 .done:
     ret
 
-; 数据
-boot_drive: db 0
-loading_msg db "Loading MppleKernel...", 13, 10, 0
-success_msg db "Kernel loaded successfully!", 13, 10, 0
-error_msg db "Failed to load kernel!", 13, 10, 0
-protected_msg db "Protected mode entered, starting kernel...", 0
+; 数据区
+boot_drive:   db 0
+msg_booting:  db "Booting MppleKernel...", 13, 10, 0
+msg_reset:    db "Resetting disk...", 13, 10, 0
+msg_reading:  db "Reading kernel from disk...", 13, 10, 0
+msg_success:  db "Kernel loaded successfully!", 13, 10, 0
+msg_error:    db "Failed to load kernel!", 13, 10, 0
+msg_pmode:    db "Entering protected mode...", 13, 10, 0
+msg_protected:db "Protected mode entered, starting kernel...", 0
 
 ; GDT
 gdt:

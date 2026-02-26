@@ -2,19 +2,22 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+// ==================== 硬件参数 ====================
 #define VGA_WIDTH 80
 #define VGA_HEIGHT 25
 #define VGA_MEMORY ((uint16_t*)0xB8000)
-#define ver "Mpple Kernel v1.0.2"
+#define VERSION "Mpple Kernel v1.0.2"
 
 static volatile uint16_t* const vga = VGA_MEMORY;
 static int cursor_x = 0;
 static int cursor_y = 0;
 static uint8_t current_color = 0x07;
 
+// 键盘修饰键状态
 static bool shift_pressed = false;
 static bool caps_locked = false;
 
+// ==================== 端口 I/O ====================
 static inline uint8_t inb(uint16_t port) {
     uint8_t ret;
     asm volatile("inb %1, %0" : "=a"(ret) : "Nd"(port));
@@ -29,6 +32,7 @@ static inline void outw(uint16_t port, uint16_t val) {
     asm volatile("outw %0, %1" : : "a"(val), "Nd"(port));
 }
 
+// ==================== 光标和屏幕输出 ====================
 #define UPDATE_CURSOR() \
     do { \
         uint16_t pos = cursor_y * VGA_WIDTH + cursor_x; \
@@ -88,6 +92,7 @@ static inline void outw(uint16_t port, uint16_t val) {
 
 #define OUT(str) do { PRINT(str); PUTCHAR('\n'); } while(0)
 
+// ==================== 键盘扫描码映射 ====================
 static const char base_map[128] = {
     0,0,'1','2','3','4','5','6','7','8','9','0','-','=','\b',0,
     'q','w','e','r','t','y','u','i','o','p','[',']','\n',0,'a','s',
@@ -102,6 +107,7 @@ static const char shift_map[128] = {
     'B','N','M','<','>','?',0,'*',0,' ',0,0,0,0,0,0
 };
 
+// 读取一个字符（阻塞）
 static inline char getchar() {
     uint8_t scancode;
     while ((inb(0x64) & 1) == 0);
@@ -139,6 +145,7 @@ static inline char getchar() {
     }
 }
 
+// 读取一行输入
 static inline void read_line(char* buffer, int max_len) {
     if (!buffer || max_len <= 0) return;
     int i = 0;
@@ -162,6 +169,14 @@ static inline void read_line(char* buffer, int max_len) {
     if (i == max_len - 1) buffer[i] = '\0';
 }
 
+// ==================== 字符串辅助 ====================
+static inline int strequal(const char* a, const char* b) {
+    if (!a || !b) return 0;
+    while (*a && *b && *a == *b) { a++; b++; }
+    return (*a == '\0' && *b == '\0');
+}
+
+// ==================== 程序管理（未使用）====================
 typedef void (*prog_entry_t)(void);
 struct Program {
     const char* name;
@@ -170,30 +185,30 @@ struct Program {
 static const Program programs[] = {};
 static const int num_programs = sizeof(programs) / sizeof(programs[0]);
 
-static inline int strequal(const char* a, const char* b) {
-    if (!a || !b) return 0;
-    while (*a && *b && *a == *b) { a++; b++; }
-    return (*a == '\0' && *b == '\0');
-}
-// 安全的 draw 函数：忽略空行，不会崩溃
+// ==================== 界面绘制 ====================
+// 安全的 draw 函数：忽略空行
 static void draw(const char* pic[], int lines) {
     if (!pic || lines <= 0) return;
     for (int i = 0; i < lines; i++) {
-        if (pic[i] == NULL) continue; // 忽略空行，避免崩溃
+        if (pic[i] == NULL) continue;
         OUT(pic[i]);
     }
 }
-// 合并的桌面图标数组
+
+// 桌面图标数组
 static const char* desktop_icons[] = {
-    "+---------+  +---------+  +---------+",
-    "|  EXIT   |  |POWER OFF|  | REBOOT  |",
-    "|    |    |  |   ( )   |  |   / \\   |",
-    "|    v    |  |    |    |  |  |   |  |",
-    "|         |  |    |    |  |   \\ /   |",
-    "+---------+  +---------+  +---------+",
-    "    [1]         [2]           [3]    ",
-    "=============================================",
-    "INPUT NUMBER TO CHOOSE FUNCTION: "
+    "+========================================+",
+    "|               (1)POWER                 |",
+    "+========================================+",
+    "| +---------+  +---------+  +---------+  |",
+    "| |  EXIT   |  |POWER OFF|  | REBOOT  |  |",
+    "| |    |    |  |   ( )   |  |   / \\   |  |",
+    "| |    v    |  |    |    |  |  |   |  |  |",
+    "| |         |  |    |    |  |   \\ /   |  |",
+    "| +---------+  +---------+  +---------+  |",
+    "|     [1]         [2]           [3]      |",
+    "|                                        |",
+    "+========================================+"
 };
 static const int desktop_icon_lines = sizeof(desktop_icons) / sizeof(desktop_icons[0]);
 
@@ -201,7 +216,6 @@ static const int desktop_icon_lines = sizeof(desktop_icons) / sizeof(desktop_ico
 static void Desktop() {
     while (1) {
         CLEAR();
-        // 逐行输出图标（安全处理空行）
         for (int i = 0; i < desktop_icon_lines; i++) {
             if (desktop_icons[i] != NULL) {
                 OUT(desktop_icons[i]);
@@ -234,6 +248,8 @@ static void Desktop() {
         }
     }
 }
+
+// 显示启动 Logo
 static void draw_logo() {
     const char* logo[] = {
         "      |",
@@ -248,6 +264,7 @@ static void draw_logo() {
     }
 }
 
+// ==================== 内核入口 ====================
 extern "C" void kernel_main() {
     CLEAR();
     draw_logo();
@@ -255,7 +272,7 @@ extern "C" void kernel_main() {
     for (int i = 0; i < 3000000; i++) asm volatile("pause");
     shift_pressed = false;
     caps_locked = false;
-    OUT(ver);
+    OUT(VERSION);
     OUT("Type 'help' for commands.");
 
     char cmd_buf[128];
@@ -274,7 +291,7 @@ extern "C" void kernel_main() {
             OUT("shutdown - Same as poweroff");
             OUT("reboot   - Reboot the system");
             OUT("run      - Run a program (run <progname>)");
-            OUT("desktop - Enter desktop environment");
+            OUT("desktop  - Enter desktop environment");
             continue;
         }
 
@@ -284,7 +301,7 @@ extern "C" void kernel_main() {
         }
 
         if (strequal(cmd_buf, "ver")) {
-            OUT(ver);
+            OUT(VERSION);
             continue;
         }
 
@@ -327,10 +344,12 @@ extern "C" void kernel_main() {
             if (!found) OUT("Program not found.");
             continue;
         }
+
         if (strequal(cmd_buf, "desktop")) {
             Desktop();
             continue;
         }
+
         if (strequal(cmd_buf, "RESETKB")) {
             shift_pressed = false;
             caps_locked = false;
