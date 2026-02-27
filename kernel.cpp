@@ -107,6 +107,40 @@ static const char shift_map[128] = {
     'B','N','M','<','>','?',0,'*',0,' ',0,0,0,0,0,0
 };
 
+// ==================== 错误处理 ====================
+static void panic(const char* msg) {
+    // 直接操作显存，不依赖任何宏
+    volatile uint16_t* video = (uint16_t*)0xB8000;
+    // 清屏
+    for (int i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++) {
+        video[i] = (0x07 << 8) | ' ';
+    }
+    // 显示错误信息
+    const char* prefix = "KERNEL PANIC: ";
+    int pos = 0;
+    while (*prefix) {
+        video[pos++] = (0x04 << 8) | *prefix++; // 红色
+    }
+    while (*msg) {
+        video[pos++] = (0x0F << 8) | *msg++;    // 白色
+    }
+    // 延时约3秒（粗略）
+    for (volatile int i = 0; i < 10000000; i++);
+    // 重启系统（键盘控制器复位）
+    asm volatile("cli");
+    while (inb(0x64) & 0x02); // 等待键盘控制器空闲
+    outb(0x64, 0xFE);         // 发送复位脉冲
+    asm volatile("hlt");
+    while (1);
+}
+
+#define ASSERT(cond, msg) \
+    do { \
+        if (!(cond)) { \
+            panic(msg); \
+        } \
+    } while(0)
+
 // 读取一个字符（阻塞）
 static inline char getchar() {
     uint8_t scancode;
@@ -147,7 +181,8 @@ static inline char getchar() {
 
 // 读取一行输入
 static inline void read_line(char* buffer, int max_len) {
-    if (!buffer || max_len <= 0) return;
+    ASSERT(buffer != NULL, "read_line: buffer is NULL");
+    ASSERT(max_len > 0, "read_line: max_len <= 0");
     int i = 0;
     while (i < max_len - 1) {
         char c = getchar();
@@ -171,7 +206,7 @@ static inline void read_line(char* buffer, int max_len) {
 
 // ==================== 字符串辅助 ====================
 static inline int strequal(const char* a, const char* b) {
-    if (!a || !b) return 0;
+    ASSERT(a != NULL && b != NULL, "strequal: NULL argument");
     while (*a && *b && *a == *b) { a++; b++; }
     return (*a == '\0' && *b == '\0');
 }
@@ -188,7 +223,8 @@ static const int num_programs = sizeof(programs) / sizeof(programs[0]);
 // ==================== 界面绘制 ====================
 // 安全的 draw 函数：忽略空行
 static void draw(const char* pic[], int lines) {
-    if (!pic || lines <= 0) return;
+    ASSERT(pic != NULL, "draw: pic is NULL");
+    ASSERT(lines >= 0, "draw: lines negative");
     for (int i = 0; i < lines; i++) {
         if (pic[i] == NULL) continue;
         OUT(pic[i]);
@@ -266,6 +302,9 @@ static void draw_logo() {
 
 // ==================== 内核入口 ====================
 extern "C" void kernel_main() {
+    // 检查内核是否正常启动（可选）
+    // 例如，可以检查某些关键变量是否合理，但此处省略
+
     CLEAR();
     draw_logo();
 

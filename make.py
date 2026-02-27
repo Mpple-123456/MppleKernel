@@ -79,6 +79,9 @@ class BuildUI(tk.Tk):
         btn_all.pack(side=tk.LEFT, padx=2)
         btn_stop_qemu = tk.Button(frame_buttons2, text="停止 QEMU", command=self.stop_qemu, width=14, bg="orange")
         btn_stop_qemu.pack(side=tk.LEFT, padx=2)
+        # 新增清除输出按钮
+        btn_clear_log = tk.Button(frame_buttons2, text="清除输出", command=self.clear_log, width=14, bg="lightgray")
+        btn_clear_log.pack(side=tk.LEFT, padx=2)
 
         # 输出文本框
         self.text_output = scrolledtext.ScrolledText(self, wrap=tk.WORD, height=15)
@@ -99,6 +102,10 @@ class BuildUI(tk.Tk):
         self.text_output.insert(tk.END, message + "\n")
         self.text_output.see(tk.END)
         self.update_idletasks()
+
+    def clear_log(self):
+        """清空输出文本框"""
+        self.text_output.delete(1.0, tk.END)
 
     def run_cmd(self, cmd, cwd=None, capture=True):
         """
@@ -155,12 +162,12 @@ class BuildUI(tk.Tk):
             return
         # 创建空白镜像（1.44MB）
         cwd = self.entry_dir.get() or os.getcwd()
-        img_path = os.path.join(cwd, "os.img")
+        img_path = os.path.join(cwd, "MppleKernel.img")
         try:
             with open(img_path, "wb") as f:
                 f.seek(1474560 - 1)
                 f.write(b'\x00')
-            self.log("创建空白镜像 os.img (1.44MB)", "green")
+            self.log("创建空白镜像 MppleKernel.img (1.44MB)", "green")
         except Exception as e:
             self.log(f"创建镜像失败: {e}", "red")
             return
@@ -188,16 +195,16 @@ class BuildUI(tk.Tk):
             self.log(f"写入 kernel.bin 失败: {e}", "red")
             return
 
-        self.log("镜像制作完成", "green")
+        self.log("Done!", "green")
 
     def run_qemu(self):
         qemu = self.entry_qemu.get().strip() or "qemu-system-i386"
         cwd = self.entry_dir.get() or os.getcwd()
-        img_path = os.path.join(cwd, "os.img")
+        img_path = os.path.join(cwd, "MppleKernel.img")
         if not os.path.exists(img_path):
-            self.log("镜像文件 os.img 不存在，请先制作镜像", "red")
+            self.log("镜像文件 MppleKernel.img 不存在，请先制作镜像", "red")
             return
-        cmd = [qemu, "-drive", "format=raw,file=os.img", "-fda", "os.img", "-snapshot"]
+        cmd = [qemu, "-drive", "format=raw,file=MppleKernel.img", "-fda", "MppleKernel.img", "-snapshot"]
         self.run_cmd(cmd, capture=False)
 
     def stop_qemu(self):
@@ -217,7 +224,7 @@ class BuildUI(tk.Tk):
     def clean_files(self):
         """清理生成的文件：*.o, *.elf, *.bin, *.img"""
         cwd = self.entry_dir.get() or os.getcwd()
-        patterns = ['*.o', '*.elf', '*.bin', '*.img']
+        patterns = ['*.o', '*.elf', '*.bin', 'MppleKernel.img']
         deleted = []
         failed = []
         for pattern in patterns:
