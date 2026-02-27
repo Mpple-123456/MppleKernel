@@ -6,7 +6,7 @@
 #define VGA_WIDTH 80
 #define VGA_HEIGHT 25
 #define VGA_MEMORY ((uint16_t*)0xB8000)
-#define VERSION "Mpple Kernel v1.0.2"
+#define VERSION "Mpple Kernel v1.0.3"
 
 static volatile uint16_t* const vga = VGA_MEMORY;
 static int cursor_x = 0;
@@ -398,4 +398,5 @@ extern "C" void kernel_main() {
 
         OUT("Unknown command. Type 'help'.");
     }
+
 }
