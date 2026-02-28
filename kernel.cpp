@@ -1,12 +1,35 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#ifdef GRUB
+// ==================== Multiboot 头部 (仅用于 GRUB) ====================
 
+#define MULTIBOOT_HEADER_MAGIC  0x1BADB002
+#define MULTIBOOT_HEADER_FLAGS   0x00000003
+#define MULTIBOOT_CHECKSUM       ((uint32_t)(0 - (MULTIBOOT_HEADER_MAGIC + MULTIBOOT_HEADER_FLAGS)))
+
+__attribute__((section(".multiboot")))
+struct multiboot_header {
+    uint32_t magic;
+    uint32_t flags;
+    uint32_t checksum;
+    uint32_t header_addr;
+    uint32_t load_addr;
+    uint32_t load_end_addr;
+    uint32_t bss_end_addr;
+    uint32_t entry_addr;
+} multiboot_header = {
+    MULTIBOOT_HEADER_MAGIC,
+    MULTIBOOT_HEADER_FLAGS,
+    MULTIBOOT_CHECKSUM,
+    0, 0, 0, 0, 0
+};
+#endif
 // ==================== 硬件参数 ====================
 #define VGA_WIDTH 80
 #define VGA_HEIGHT 25
 #define VGA_MEMORY ((uint16_t*)0xB8000)
-#define VERSION "Mpple Kernel v1.0.3"
+#define VERSION "Mpple Kernel v1.0.4"
 
 static volatile uint16_t* const vga = VGA_MEMORY;
 static int cursor_x = 0;
@@ -398,5 +421,4 @@ extern "C" void kernel_main() {
 
         OUT("Unknown command. Type 'help'.");
     }
-
 }

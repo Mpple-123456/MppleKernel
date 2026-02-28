@@ -3,7 +3,11 @@ ENTRY(kernel_main)
 
 SECTIONS
 {
-    . = 0x10000;  /* 内核加载地址 */
+    . = 0x10000;
+
+    .multiboot : {
+        *(.multiboot)
+    }
 
     .text : {
         *(.text)
