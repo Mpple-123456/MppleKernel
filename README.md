@@ -75,20 +75,17 @@ bash
 -C：清理生成的文件
 
 使用图形化工具
-bash
-python3 make.py
+    python3 make.py
 勾选“编译 GRUB 版本”，然后点击相应按钮执行步骤。
 
 在 QEMU 中运行
-bash
-./build.sh -r
+    ./build.sh -r
 将自动优先使用 ISO 镜像启动；若无 ISO 则使用软盘镜像。
 
 安装到 USB 设备
 警告：此操作会销毁设备上的所有数据！
 
-bash
-sudo ./install.sh
+    sudo ./install.sh
 按照提示选择目标设备（如 /dev/sdb），输入 YES 确认后写入。
 
 📖 使用指南
