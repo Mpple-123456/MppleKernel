@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mpple Kernel · 轻量 x86 操作系统内核</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: #f8fafc;
+            color: #0b1e33;
+            line-height: 1.6;
+            padding: 2rem 1.5rem;
+            animation: pageFadeIn 0.8s ease-out;
+        }
+        @keyframes pageFadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 32px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.08), 0 6px 12px rgba(0,0,0,0.05);
+            overflow: hidden;
+            border: 1px solid #e9edf2;
+        }
+        header {
+            background: linear-gradient(145deg, #0b1e33, #1a2f45);
+            color: white;
+            padding: 2.5rem 2rem;
+            text-align: center;
+            position: relative;
+        }
+        header h1 {
+            font-size: 3rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.5rem;
+            animation: titleGlow 2s infinite alternate;
+        }
+        @keyframes titleGlow {
+            from { text-shadow: 0 0 5px rgba(255,255,255,0.2); }
+            to { text-shadow: 0 0 20px rgba(255,255,255,0.6); }
+        }
+        .pulse-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background: #4ade80;
+            border-radius: 50%;
+            margin-left: 10px;
+            animation: pulse 1.5s infinite;
+            vertical-align: middle;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.5); opacity: 0.5; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        header .version {
+            background: rgba(255,255,255,0.15);
+            display: inline-block;
+            padding: 0.2rem 1rem;
+            border-radius: 40px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            backdrop-filter: blur(4px);
+            margin-top: 0.5rem;
+        }
+        header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            max-width: 600px;
+            margin: 1rem auto 0;
+        }
+        .badges {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            margin-top: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .badge {
+            background: #2b4055;
+            color: white;
+            padding: 0.3rem 1rem;
+            border-radius: 30px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-decoration: none;
+            transition: 0.2s;
+        }
+        .badge:hover {
+            background: #3b5570;
+            transform: scale(1.05);
+        }
+        .content {
+            padding: 2.5rem 2rem;
+        }
+        h2 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            border-bottom: 3px solid #e2e8f0;
+            padding-bottom: 0.5rem;
+        }
+        h2:first-of-type {
+            margin-top: 0;
+        }
+        h3 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin: 1.5rem 0 0.8rem;
+            color: #1e293b;
+        }
+        ul, ol {
+            margin: 0.5rem 0 1.5rem 1.5rem;
+        }
+        li {
+            margin-bottom: 0.3rem;
+        }
+        code {
+            background: #eef2f6;
+            padding: 0.2rem 0.5rem;
+            border-radius: 6px;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 0.9em;
+            color: #d14;
+        }
+        pre {
+            background: #0b1e33;
+            color: #e2e8f0;
+            padding: 1.2rem;
+            border-radius: 16px;
+            overflow-x: auto;
+            font-size: 0.9rem;
+            margin: 1.2rem 0;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.3);
+            position: relative;
+        }
+        .blinking-cursor {
+            display: inline-block;
+            width: 2px;
+            height: 1.2em;
+            background-color: #4ade80;
+            margin-left: 2px;
+            vertical-align: middle;
+            animation: blink 1s step-end infinite;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.2rem;
+            margin: 1.5rem 0;
+        }
+        .feature-item {
+            background: #f1f5f9;
+            border-radius: 20px;
+            padding: 1.2rem;
+            text-align: center;
+            font-weight: 500;
+            border: 1px solid #dde3ea;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .feature-item:hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.1);
+        }
+        .feature-item span {
+            font-size: 2rem;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+        .folder-structure {
+            background: #f1f5f9;
+            padding: 1.5rem;
+            border-radius: 20px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            line-height: 1.8;
+            border: 1px solid #dde3ea;
+        }
+        .button {
+            background: #0b1e33;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.8rem;
+            border-radius: 40px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .button:hover {
+            background: #1e3a5f;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        }
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: #65758b;
+            border-top: 1px solid #e9edf2;
+            background: #f9fcff;
+        }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+        @media (max-width: 700px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Mpple Kernel <span class="pulse-dot"></span></h1>
+            <div class="version">最新版本 v1.0.4</div>
+            <p>从零构建的轻量级 x86 操作系统内核 · 学习 · 实验 · 可引导</p>
+            <div class="badges">
+                <span class="badge">C++ / Assembly</span>
+                <span class="badge">Multiboot</span>
+                <span class="badge">UEFI 支持</span>
+            </div>
+        </header>
+        <div class="content">
+            <h2>✨ 核心特性</h2>
+            <div class="feature-grid">
+                <div class="feature-item"><span>🖥️</span> VGA 文本模式 80×25</div>
+                <div class="feature-item"><span>⌨️</span> PS/2 键盘驱动<br>支持 Caps/Shift</div>
+                <div class="feature-item"><span>📟</span> 命令行 Shell<br>8+ 内置命令</div>
+                <div class="feature-item"><span>🖼️</span> 文本桌面环境</div>
+                <div class="feature-item"><span>🚀</span> 双引导：传统 + GRUB</div>
+                <div class="feature-item"><span>🧰</span> Python 构建工具<br>图形化/命令行</div>
+            </div>
+
+            <h2>📁 项目结构</h2>
+            <div class="folder-structure">
+.
+├── boot/               # 引导相关
+│   ├── boot.asm        # 传统引导程序
+│   └── grub.cfg        # GRUB 配置文件
+├── kernel/             # 内核源码
+│   ├── kernel.cpp      # 主内核
+│   └── linker.ld       # 链接脚本
+├── build/              # 构建脚本
+│   ├── build.sh        # 命令行构建
+│   └── make.py         # 图形化构建
+├── install.sh          # USB 写入脚本
+├── installbash.sh      # 依赖安装脚本
+└── README.md           # 项目说明
+            </div>
+
+            <h2>🚀 快速开始</h2>
+            <div class="grid-2">
+                <div>
+                    <h3>1️⃣ 安装依赖</h3>
+                    <pre><code>sudo ./installbash.sh<span class="blinking-cursor"></span></code></pre>
+                    <p>自动安装 g++, nasm, qemu, python3-tk, grub, xorriso 等。</p>
+                </div>
+                <div>
+                    <h3>2️⃣ 构建内核</h3>
+                    <pre><code>cd build
+./build.sh --grub -a<span class="blinking-cursor"></span></code></pre>
+                    <p>或使用图形化工具：<code>python3 make.py</code></p>
+                </div>
+                <div>
+                    <h3>3️⃣ 运行测试</h3>
+                    <pre><code>./build.sh -r<span class="blinking-cursor"></span></code></pre>
+                    <p>QEMU 将自动启动，优先使用 ISO 镜像。</p>
+                </div>
+                <div>
+                    <h3>4️⃣ 写入 USB</h3>
+                    <pre><code>sudo ./install.sh<span class="blinking-cursor"></span></code></pre>
+                    <p>⚠️ 会覆盖设备所有数据，谨慎操作。</p>
+                </div>
+            </div>
+
+            <h2>📟 基础命令</h2>
+            <p>启动后提示符为 <code>></code>，支持以下命令：</p>
+            <table>
+                <tr><th>命令</th><th>说明</th></tr>
+                <tr><td><code>help</code></td><td>显示帮助信息</td></tr>
+                <tr><td><code>clear</code></td><td>清屏</td></tr>
+                <tr><td><code>echo &lt;text&gt;</code></td><td>回显文本</td></tr>
+                <tr><td><code>ver</code></td><td>显示内核版本</td></tr>
+                <tr><td><code>poweroff</code> / <code>shutdown</code></td><td>关机</td></tr>
+                <tr><td><code>reboot</code></td><td>重启</td></tr>
+                <tr><td><code>RESETKB</code></td><td>重置键盘状态</td></tr>
+                <tr><td><code>desktop</code></td><td>进入桌面环境</td></tr>
+            </table>
+            <p><strong>使用技巧：</strong>退格删除、Caps Lock 切换大写（屏幕右上角显示 <code>CAPS</code>）、Shift 输入符号。</p>
+
+            <h2>🖼️ 桌面环境</h2>
+            <p>输入 <code>desktop</code> 进入文本桌面，三个图标对应数字键：</p>
+            <pre>
++========================================+
+|               (1)POWER                 |
++========================================+
+| +---------+  +---------+  +---------+  |
+| |  EXIT   |  |POWER OFF|  | REBOOT  |  |
+| |    |    |  |   ( )   |  |   / \   |  |
+| |    v    |  |    |    |  |  |   |  |  |
+| |         |  |    |    |  |   \ /   |  |
+| +---------+  +---------+  +---------+  |
+|     [1]         [2]           [3]      |
++========================================+</pre>
+            <ul>
+                <li><code>1</code> – 返回命令行</li>
+                <li><code>2</code> – 关机</li>
+                <li><code>3</code> – 重启</li>
+            </ul>
+
+            <h2>🧠 内核架构摘要</h2>
+            <ul>
+                <li>引导程序加载内核到 <code>0x10000</code>，进入保护模式。</li>
+                <li>直接操作 VGA 显存 <code>0xB8000</code>，硬件光标同步。</li>
+                <li>键盘轮询，扫描码映射 ASCII，支持 Shift/Caps。</li>
+                <li>错误处理：<code>panic()</code> 显示红色信息并重启。</li>
+                <li>Multiboot 头部（可选），支持 GRUB 引导。</li>
+            </ul>
+
+            <h2>📦 项目信息</h2>
+            <table>
+                <tr><th>版本</th><td>v1.0.4 (2025-02-28)</td></tr>
+                <tr><th>开发语言</th><td>C++17, x86 Assembly, Python (工具)</td></tr>
+                <tr><th>仓库</th><td><a href="https://github.com/Mpple-123456/MppleKernel" target="_blank">github.com/Mpple-123456/MppleKernel</a></td></tr>
+            </table>
+
+            <div style="text-align: center; margin: 2.5rem 0 1rem;">
+                <a href="https://github.com/Mpple-123456/MppleKernel/wiki" class="button" style="margin-right: 1rem;" target="_blank">📖 查看 Wiki</a>
+                <a href="https://github.com/Mpple-123456/MppleKernel" class="button" style="background: #1e3a5f;" target="_blank">⭐ 在 GitHub 上关注</a>
+            </div>
+        </div>
+        <footer>
+            <p>Mpple Kernel · 一个从零开始的操作系统内核 · 开放源码 · 欢迎贡献</p>
+            <p style="font-size:0.9rem; margin-top:1rem;">Made with 🖥️ for learners and hackers</p>
+        </footer>
+    </div>
+</body>
+</html>
