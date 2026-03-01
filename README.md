@@ -51,11 +51,9 @@ sudo ./installbash.sh
 构建内核
 所有构建命令必须在 build/ 目录下执行：
 
-bash
 cd build
 使用命令行脚本
-bash
-./build.sh --grub -a   # 编译内核并生成软盘镜像和 GRUB ISO
+    ./build.sh --grub -a   # 编译内核并生成软盘镜像和 GRUB ISO
 可用选项：
 
 -c：仅编译内核
@@ -84,7 +82,6 @@ bash
 
 安装到 USB 设备
 警告：此操作会销毁设备上的所有数据！
-
     sudo ./install.sh
 按照提示选择目标设备（如 /dev/sdb），输入 YES 确认后写入。
 
